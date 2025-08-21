@@ -110,9 +110,24 @@ def build_model(xml, discard_visual, default_armature=None, merge_fixed_links=Fa
                 elem.set("filename", os.path.abspath(os.path.join(asset_path, mesh_path)))
 
         with open(os.devnull, "w") as stderr, redirect_libc_stderr(stderr):
-            # Parse updated URDF file as a string
-            data = ET.tostring(root, encoding="utf8")
-            mj = mujoco.MjModel.from_xml_string(data)
+            # Check if the XML contains include directives
+            has_includes = root.find(".//include") is not None
+            
+            if has_includes and is_valid_path:
+                # If XML has includes and we have a valid file path, use from_xml_path
+                # First save the modified XML to a temporary file in the same directory
+                import tempfile
+                temp_fd, temp_path = tempfile.mkstemp(suffix=".xml", dir=asset_path)
+                try:
+                    with os.fdopen(temp_fd, 'wb') as f:
+                        f.write(ET.tostring(root, encoding="utf8"))
+                    mj = mujoco.MjModel.from_xml_path(temp_path)
+                finally:
+                    os.unlink(temp_path)
+            else:
+                # Parse updated XML as a string (original behavior)
+                data = ET.tostring(root, encoding="utf8")
+                mj = mujoco.MjModel.from_xml_string(data)
             # Special treatment for URDF
             if is_urdf_file:
                 # Discard placeholder inertias that were used to avoid parsing failure
