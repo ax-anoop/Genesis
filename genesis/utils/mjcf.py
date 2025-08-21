@@ -53,7 +53,13 @@ def build_model(xml, discard_visual, default_armature=None, merge_fixed_links=Fa
 
         # Set absolute asset search directory
         for name in ("assetdir", "meshdir", "texturedir"):
-            compiler.attrib[name] = str(Path(asset_path) / compiler.attrib.get(name, ""))
+            relative_path = compiler.attrib.get(name, "")
+            if relative_path and not os.path.isabs(relative_path):
+                # Make relative paths absolute
+                compiler.attrib[name] = str(Path(asset_path) / relative_path)
+            elif not relative_path:
+                # If no path specified, use the asset_path itself
+                compiler.attrib[name] = str(asset_path)
 
         # Set default constraint solver time constant and motor armature.
         # Note that these default options are ignored when parsing URDF files.
